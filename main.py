@@ -1,4 +1,5 @@
 import hcs
+import chat_main
 # import customtkinter as ctk
 
 # app = ctk.CTk()
@@ -140,7 +141,10 @@ class MainApp(ctk.CTk):
             app.mainloop()
             
         elif index == 1:
-            print("💬 Chat mode activated")
+            # app = ctk.CTk()
+            chat_main.main()
+            # app.mainloop()
+            
 
 
 # ------------------ Run ------------------

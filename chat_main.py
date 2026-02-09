@@ -1,11 +1,23 @@
 import customtkinter as ctk
-import pyttsx3
 from nltk import FreqDist, ngrams, word_tokenize
 import re
-import pyautogui
-import time
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import db
 
 
+cred = credentials.Certificate('admin.json')
+
+        #Initialize the app with a service account, granting admin privileges
+firebase_admin.initialize_app(cred, {
+                'databaseURL': 'https://vakyasetu-chat-default-rtdb.firebaseio.com/'
+            })
+
+        #Reference to your database
+# ref = db.reference('/')
+
+
+FONT = ("Helvetica", 25)
 # ------------------------- NLP: WORD SUGGESTIONS -------------------------
 def get_word_suggestions(text_corpus, current_word, num_suggestions=5):
     # Tokenize the text into lowercase words
@@ -41,19 +53,6 @@ def get_word_suggestions(text_corpus, current_word, num_suggestions=5):
     suggestions_for_one = [word.upper() for word, _ in next_word_freq.most_common(num_suggestions)]
 
     return suggestions + suggestions_for_one
-
-
-
-def speak(text):
-
-    engine = pyttsx3.init()
-    rate = engine.getProperty('rate')
-    engine.setProperty('rate', rate - 50)  # Slow down speech rate
-    engine.setProperty('volume', 3)
-    voices = engine.getProperty('voices')
-    engine.setProperty('voice', voices[1].id) 
-    engine.say(text)
-    engine.runAndWait()
 
 
 
@@ -102,14 +101,15 @@ def new_suggestions(word):
             for i in words:
                 with open("usedWords.txt",'w') as rewriting: #rewriting the whole file
                     rewriting.write(f"{i}:{count[words.index(i)]}\n")
+    
 
 
 
 class AlphabetLocator:
     def __init__(self, root):
-        
         self.root = root
         self.root.title("HAWKING")
+        self.root.geometry("800x700")
         
         root.attributes('-fullscreen', True) 
         self.root.state("zoomed")
@@ -136,15 +136,18 @@ class AlphabetLocator:
         self.selected_index = -1
 
        
-        self.main_frame = ctk.CTkFrame(self.root, corner_radius=15)
-        self.main_frame.pack(expand=True, fill="both", padx=20, pady=20)
+        self.main_frame = ctk.CTkFrame(self.root,corner_radius=15)
+        self.main_frame.pack(side="right",fill='both',expand=True)
+
+        self.chat_frame = ctk.CTkFrame(self.root,width=800,corner_radius=15)
+        self.chat_frame.pack(side='left',fill='y',expand=True)
 
         # Dynamic resizing
         total_rows = self.rows + 4
         for r in range(total_rows):
-            self.main_frame.grid_rowconfigure(r, weight=1)
+            self.main_frame.grid_rowconfigure(r, weight=4)
         for c in range(self.cols + 1):
-            self.main_frame.grid_columnconfigure(c, weight=1)
+            self.main_frame.grid_columnconfigure(c, weight=4)
 
        
         self.history_entry = ctk.CTkEntry(
@@ -152,6 +155,15 @@ class AlphabetLocator:
         )
 
         self.history_entry.focus_set()
+
+        self.chat_box = ctk.CTkTextbox(
+            self.chat_frame,
+            width=750,
+            height=750,
+            font=FONT
+            )
+        self.chat_box.pack(padx=10, pady=10)
+        self.chat_box.configure(state="disabled")
         
         
         self.history_entry.grid(row=0, column=0, columnspan=self.cols+1, pady=10, padx=10, sticky="nsew")
@@ -204,7 +216,7 @@ class AlphabetLocator:
         self.labels = []
 
         # Action row (row 0)
-        actions = ["Enter", "Clear", "Back", "Space"]
+        actions = ["Send", "Clear", "Back", "Space"]
         action_row = []
         for c in range(self.cols):
             lbl = ctk.CTkLabel(
@@ -244,8 +256,7 @@ class AlphabetLocator:
                     self.labels[r][c].configure(fg_color="gray25")
                 else:
                     self.labels[r][c].configure(fg_color="gray15")
-        
-        
+    
 
         # Highlight based on stage
         if self.stage == "col":
@@ -260,6 +271,54 @@ class AlphabetLocator:
                 self.status.configure(text="Selected Actions row. Press ENTER to perform action.")
             else:
                 self.status.configure(text=f"Selected row: {self.current_row}. Press ENTER to confirm.")
+
+
+
+    def listener(self,event):
+        self.history_entry.focus_set()
+        self.chat_box.configure(state='normal')
+
+        if str(type(event.data)) == "<class 'str'>":
+            self.chat_box.insert('end',f"{event.data}\n")
+            self.chat_box.configure(state="disabled")
+
+        elif isinstance(event.data,dict):
+            msgs = event.data.values()
+            print(msgs)
+           
+            for msg in msgs:
+                self.chat_box.insert('end',f"{msg}\n")
+        
+        elif isinstance(event.data,list):
+            msgs = event.data
+           
+            for msg in msgs:
+                self.chat_box.insert('end',f"{msg}\n")
+
+
+        self.chat_box.configure(state="disabled")
+         
+
+
+
+    def send_message(self,msg):
+        user_msg = msg
+        if not user_msg:
+            return
+
+        ref = db.reference('/')
+        msg_ref = ref.child('msg')
+        count_ref = db.reference('count')
+
+        count = count_ref.get()
+        ref.update({'count':count+1})
+        # print(count)
+        msg_ref.update({
+            count+1 : f"you:{user_msg}"
+            })
+
+        # ref.update({'count':count+1})
+
 
     #NAVIGATION CONTROLS
 
@@ -297,8 +356,9 @@ class AlphabetLocator:
                 self.selected_history = self.selected_history[:-1]
             elif text == "Space":
                 self.selected_history += " "
-            elif text == "Enter":
-                speak(self.selected_history)
+            elif text == "Send":
+                # speak(self.selected_history)
+                self.send_message(self.selected_history)
                 new_suggestions(self.selected_history)
             self.update_history()
 
@@ -351,62 +411,7 @@ class AlphabetLocator:
         if not typed:
             self.suggestion_box.grid_remove()
             return
-
-        # Example corpus for language suggestions (medical/help phrases)
-        # corpus = """
-        # I am hungry
-        # I am thirsty
-        # I am tired
-        # I am in pain
-        # I am cold
-        # I am hot
-        # Please adjust my pillow
-        # Please move my hand
-        # Please help me sit up
-        # Please help me lie down
-        # Call the nurse
-        # Call the doctor
-        # I need medicine
-        # I feel dizzy
-        # I feel weak
-        # I cannot breathe properly
-        # Please check my blood pressure
-        # Please check my sugar level
-        # I am happy
-        # I am sad
-        # I am scared
-        # I feel lonely
-        # I am comfortable
-        # Thank you for helping me
-        # I love you
-        # Please stay with me
-        # Hello
-        # Good morning
-        # Good night
-        # How are you?
-        # I am fine
-        # Yes
-        # No
-        # Maybe
-        # Please
-        # Thank you
-        # Sorry
-        # exit
-        # I want to watch TV
-        # I want to listen to music
-        # I want to read a book
-        # I want to sleep
-        # I want to go outside
-        # Please open the window
-        # Please turn on the fan
-        # Please turn off the light
-        # Call my family
-        # Call an ambulance
-        # I cannot move
-        # I need help immediately
-        # I am choking
-        # I am having chest pain
-        # """
+       
 
         with open("wordlist.txt",'r') as wordlist:
             corpus = wordlist.read()
@@ -486,17 +491,13 @@ class AlphabetLocator:
 
         self.update_history()
 
-        # Clear suggestions
-        # for lbl in self.suggestion_labels:
-        #     lbl.destroy()
-        # self.suggestion_labels = []
-        # self.suggestions = []
-        # self.selected_index = 0
-        # self.suggestion_box.grid_remove()
     
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
+def main():
     app = ctk.CTk()
-    AlphabetLocator(app)
+    locator = AlphabetLocator(app)
+    lis = db.reference('msg').listen(locator.listener)
     app.mainloop()
+# main()
     
