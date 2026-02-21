@@ -1,23 +1,19 @@
-import hcs
-import chat_main
 import customtkinter as ctk
-import pyautogui
+import hcs_hind2
+import chat_hindi
 import others
-import vakyasetu_hindi
 
-# ------------------ Config ------------------
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
 ACCENT = "#3b82f6"
 BG_CARD = "#111827"
 
-# ------------------ App ------------------
-class MainApp(ctk.CTk):
+class MainApp_hindi(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("VakyaSetu")
+        self.title("वाक्यसेतु")
         self.attributes("-fullscreen", True)
 
         # Exit fullscreen
@@ -35,7 +31,7 @@ class MainApp(ctk.CTk):
         # Title (top centered)
         self.title_label = ctk.CTkLabel(
             self.root_frame,
-            text="Welcome To VakyaSetu",
+            text="वाक्यसेतु में आपका स्वागत है",
             font=ctk.CTkFont(size=42, weight="bold"),
             text_color="#e5e7eb"
         )
@@ -51,9 +47,9 @@ class MainApp(ctk.CTk):
 
         # Cards
         self.cards = []
-        self.cards.append(self.create_card("🎤", "Talk"))
-        self.cards.append(self.create_card("💬", "Chat"))
-        self.cards.append(self.create_card("🎥","Others"))
+        self.cards.append(self.create_card("🎤", "बातचीत"))
+        self.cards.append(self.create_card("💬", "ऑनलाइन चैट"))
+        self.cards.append(self.create_card("🎥","अन्य"))
 
         for card in self.cards:
             card.pack(side="left", padx=20)
@@ -115,9 +111,7 @@ class MainApp(ctk.CTk):
 
     # ------------------ Keyboard ------------------
     def move_left(self, event):
-        # print(self.current_index)
         self.current_index = (self.current_index + 1) % len(self.cards)
-        
         self.update_focus()
 
     def move_right(self, event):
@@ -136,56 +130,14 @@ class MainApp(ctk.CTk):
     def activate(self, index):
         if index == 0:    
             app = ctk.CTk()
-            hcs.AlphabetLocator(app)
+            hcs_hind2.AlphabetLocatorHindi(app)
             app.mainloop()
             
         elif index == 1:
             # app = ctk.CTk()
-            chat_main.main()
+            chat_hindi.main()
             # app.mainloop()
-
+        
         elif index == 2:
-            # app = ctk.CTk()
-            others.main()
-            # app.mainloop()
-
-# ------------------ Run ------------------
-
-
-
-
-def popup_dropdown(options):
-    def on_select():
-        selected = combo.get()
-        if selected == "English":
-            root.destroy()
-            english_app = MainApp()
-            english_app.mainloop()
-
-        elif selected == "Hindi":
-            root.destroy()
-            hindi_app = vakyasetu_hindi.MainApp_hindi()
-            hindi_app.mainloop()
-        root.destroy()
-
-
-    root = ctk.CTk()
-    root.title("Vakyasetu")
-    root.attributes('-fullscreen', True) 
-    root.state("zoomed")
-
-    ctk.CTkLabel(root, text="Select An Language",font=ctk.CTkFont(size=42, weight="bold"),
-            text_color="#e5e7eb").pack(pady=150)
-    combo = ctk.CTkComboBox(root, values=options, state="readonly",width=200, height=40)
-    combo.set("English")
-    combo.place(relx=0.5, rely=0.5, anchor=ctk.CENTER)
-    combo.pack(pady=5,)
-    # combo.current(0)  # Default selection
-
-    ctk.CTkButton(root, text="Select", command=on_select,width=200, height=40).pack(pady=5)
-    root.mainloop()
-
-
-
-items = ["English", "Hindi"]
-selected = popup_dropdown(items)
+            others.main("hindi")
+            
